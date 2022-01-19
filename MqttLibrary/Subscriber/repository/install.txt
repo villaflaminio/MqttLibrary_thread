@@ -1,0 +1,60 @@
+﻿install-package Microsoft.EntityFrameworkCore
+install-package Microsoft.EntityFrameworkCore.Tools
+install-package Pomelo.EntityFrameworkCore.MySql
+
+add-migration innizialize
+update-database
+
+
+
+
+
+//Dispatcher d = new Dispatcher(10);
+            //MessageMqtt message ;
+
+            //int[] requestPerSecond = { 100, 45, 20, 15, 1 };
+
+            //for (int i = 0; i < 200; i++)
+            //{
+            //     message = new MessageMqtt("flaminio", "test", DateTime.Now);
+
+
+            //    if (i < 100) { 
+            //    message.Payload = "flaminio " + i;
+            //    d.AddRequest(message);
+            //    Task.Delay(requestPerSecond[1]).Wait();
+            //    }
+            //    if ( i > 100 && i < 200)
+            //    {
+            //        message.Payload = "flaminio " + i;
+            //        d.AddRequest(message);
+            //        Task.Delay(requestPerSecond[2]).Wait();
+            //    }
+
+
+            //    if (i > 200 && i < 300)
+            //    {
+            //        message.Payload = "flaminio " + i;
+            //        d.AddRequest(message);
+            //        Task.Delay(requestPerSecond[4]).Wait();
+            //    }
+            //    if (i > 300 && i < 400)
+            //    {
+            //        message.Payload = "flaminio " + i;
+            //        d.AddRequest(message);
+            //        Task.Delay(requestPerSecond[1]).Wait();
+            //    }
+            //    if (i > 400 )
+            //    {
+            //        message.Payload = "flaminio " + i;
+            //        d.AddRequest(message);
+            //        Task.Delay(requestPerSecond[3]).Wait();
+            //    }
+            //}
+
+            //d.ComunicateDisconnect();
+
+
+            Thread subscriberPrint = new Thread(SubscriberPrint.Run);
+
+            //subscriberPrint.Start();
