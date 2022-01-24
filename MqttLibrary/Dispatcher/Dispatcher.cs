@@ -1,4 +1,5 @@
-﻿using MqttSubscriber.model;
+﻿using MqttLibrary.Dispatcher;
+using MqttSubscriber.model;
 using MqttSubscriber.repository;
 using System;
 using System.Collections;
@@ -13,7 +14,6 @@ namespace MqttSubscriber.Dispatcher
 
     public class Dispatcher
     {
-        private static Repository db = new Repository();
 
         static private int calls; // numero di chiamate di AddRequest ricevute 
         static private Stopwatch sw;
@@ -21,17 +21,19 @@ namespace MqttSubscriber.Dispatcher
 
 
         static private int nThreadMax;
-        static private bool connected;
 
 
-        static Queue<MessageMqtt> queue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
-        static Queue<Thread> threads = new Queue<Thread>(); //contiene tutti i thread
+        static Queue<MessageMqtt> queueMessage = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        //static Queue<Thread> threads = new Queue<Thread>(); //contiene tutti i thread
 
-        Dictionary<int, Queue<MessageMqtt>> mapMessage = new Dictionary<int, Queue<MessageMqtt>>();
-        Dictionary<int, Thread> mapThread = new Dictionary<int, Thread>();
-        
+
+
+        //private static Dictionary<long, Queue<MessageMqtt>> mapMessage = new Dictionary<long, Queue<MessageMqtt>>();
+        private static Dictionary<long, Worker> mapThread = new Dictionary<long, Worker>();
+
 
         readonly static object listLock = new object();
+        Thread dispatcherThread = new Thread(DispatcherThread);
 
 
         public Dispatcher(int nThread)
@@ -40,52 +42,68 @@ namespace MqttSubscriber.Dispatcher
             sw = new Stopwatch();
             sw.Start();
             nThreadMax = nThread;
-            connected = true;
-
+            dispatcherThread.Start();
         }
-
-
-
-        void dispatch() { 
-        
-            
-        
-        
-        
-        }
+              
 
 
 
         public void AddRequest(MessageMqtt message)
         {
             Measure();
-
-
             /// per aggiungere un nuovo elemento in coda, la blocco prima di modificarla
             lock (listLock)
             {
-                queue.Enqueue(message);
+                queueMessage.Enqueue(message);
                 ///comunico che ci sono nuovi elementi in coda           
                 Monitor.Pulse(listLock); ///sblocco la lista
             }
             ProcessRequest();
         }
 
+        static void DispatcherThread()
+        {
+            while (true)
+            {
+                foreach (KeyValuePair<long, Worker> kvpWorker in mapThread)
+                {
+                    lock (listLock)
+                    {
+                        ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
+                        if (queueMessage.Count == 0)
+                        {
+                            ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
+                            Monitor.Wait(listLock);
+                        }
+
+                        MessageMqtt messageDeque = queueMessage.Dequeue();
+                        kvpWorker.Value.AddData(messageDeque);
+
+                    }
+                }
+            }
+        }
+
+        public static void InstanceThread()
+        {
+            Worker w = new Worker();
+            mapThread.Add(mapThread.Count + 1, w);
+            w.Start();
+        }
+
         public static void ProcessRequest()
         {
 
-            if (threads.Count > 0) // se non ho thread nella lista devo avviare il primo
+            if (mapThread.Count > 0) // se non ho thread nella lista devo avviare il primo
             {
                 /// il numero di thread in lista deve essere < o = al numero di richieste/10 (20req/s = 2th , 60 req/s = 6 th, etc...)
-                if (requestPerSecond / 10 > threads.Count)
+                if (requestPerSecond / 10 > mapThread.Count)
                 {
                     ///se il numero di th presenti in lista e' minore del numero massimo di th che e' possibile creare
                     ///se aggiunfo un'altro e lo avvio
-                    if (threads.Count <= nThreadMax)
+                    if (mapThread.Count <= nThreadMax)
                     {
-                        Thread t = new Thread(ProcessRequestThread);
-                        threads.Enqueue(t);
-                        t.Start();
+                        InstanceThread();
                     }
                 }
                 else
@@ -93,17 +111,13 @@ namespace MqttSubscriber.Dispatcher
                     ///se sono disponibili piu' th rispetto al numero di richieste , ne elimino uno
                     ///se il numero di richieste passa da 100 req/s a 20 req/s verra' interrotto un th ad ogni ciclo
                     ///fino a raggiungere il minimo necessario
-                    if (threads.Count > 1 && requestPerSecond / 10 != threads.Count)
+                    if (mapThread.Count > 1 && requestPerSecond / 10 != mapThread.Count)
                     {
-                        Thread t = threads.Dequeue();
-                        try
+                        Worker w;
+                        if (mapThread.TryGetValue(mapThread.Count, out w))
                         {
-                            t.Interrupt();
-
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine(ex.ToString());
+                            w.Stop();
+                            mapThread.Remove(mapThread.Count);
                         }
                     }
                 }
@@ -111,56 +125,13 @@ namespace MqttSubscriber.Dispatcher
             }
             else // avvio il primo thread
             {
-                Thread t = new Thread(ProcessRequestThread);
-                threads.Enqueue(t);
-                t.Start();
-
+                InstanceThread();
             }
             //Console.WriteLine("request_per_second = " + requestPerSecond + " thread_live = " + threads.Count + " message_to_be_processed " + queue.Count);
 
         }
 
-        static void ProcessRequestThread()
-        {
-            while (true)
-            {
-                try
-                {
-                    lock (listLock)
-                    {
 
-                        ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
-                        while (queue.Count == 0)
-                        {
-
-                            ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
-                            Monitor.Wait(listLock);
-                            break;
-                        }
-
-                        MessageMqtt messageDeque = queue.Dequeue();
-                        messageDeque.Id = null; // l'id deve essere generato automaticamente da repository
-                        db.Messages.Add(messageDeque);
-                        
-                        Console.WriteLine("Saving -> " + messageDeque.ToString());
-
-                        db.SaveChanges();
-
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
-
-            }
-        }
-
-        public void ComunicateDisconnect()
-        {
-            connected = false;
-        }
         public void setNThreadMax(int n)
         {
             nThreadMax = n;
