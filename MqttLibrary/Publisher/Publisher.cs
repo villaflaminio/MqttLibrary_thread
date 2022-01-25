@@ -41,14 +41,14 @@ namespace MqttLibrary.Publisher
             
             while (!client.IsConnected)
             {
-                Task.Delay(10).Wait();
+                Task.Delay(100).Wait();
                 Console.WriteLine(mqttFactory.GetHashCode + "Disconnect");
             }
 
             ///
             /// Test invio dati verso i subscriber
             ///
-            for (int i = 0; i < 500; i++)
+            for (int i = 1; i < 500; i++)
             {
                 ///
                 /// [0] = 10 req/s
@@ -65,7 +65,7 @@ namespace MqttLibrary.Publisher
                 else if (i >= 100 && i < 200)
                 {
                     PublishMessageAsync(client, i);
-                    Task.Delay(requestPerSecond[2]).Wait();
+                    Task.Delay(requestPerSecond[4]).Wait();
                 }
                 else if (i >= 200 && i < 300)
                 {
@@ -80,7 +80,7 @@ namespace MqttLibrary.Publisher
                 else 
                 {
                     PublishMessageAsync(client, i);
-                    Task.Delay(requestPerSecond[3]).Wait();
+                    //Task.Delay(requestPerSecond[4]).Wait();
                 }
             }
             
@@ -90,7 +90,8 @@ namespace MqttLibrary.Publisher
         private static async Task PublishMessageAsync(IMqttClient client, int i)
         {
 
-            string mex = "Hello " + i + " Time_Send: " + DateTime.Now;
+            //string mex = "Hello " + i + " Time_Send: " + DateTime.Now;
+            string mex = i + "";
 
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic("flaminio")

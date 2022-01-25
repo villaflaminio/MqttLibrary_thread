@@ -19,10 +19,10 @@ namespace MqttLibrary.Subscriber
         public static void Run()
         {
             
-            Dispatcher d = new Dispatcher(10);
-            
+            Dispatcher dispatcher = Dispatcher.GetInstance(10);
 
-            var mqttFactory = new MqttFactory();
+
+        var mqttFactory = new MqttFactory();
             var client = mqttFactory.CreateMqttClient();
             var otions = new MqttClientOptionsBuilder()
                 .WithClientId(Guid.NewGuid().ToString())
@@ -34,13 +34,13 @@ namespace MqttLibrary.Subscriber
             {
 
                 Console.WriteLine("subscriber save connesso");
-
                 var topicFilter = new TopicFilterBuilder()
                 .WithTopic("flaminio")
                 .Build();
                 client.SubscribeAsync(topicFilter);
 
             });
+
             client.UseDisconnectedHandler(e =>
             {
                 Console.WriteLine("Disconnect");
@@ -49,8 +49,7 @@ namespace MqttLibrary.Subscriber
             client.UseApplicationMessageReceivedHandler(e =>
             {
                 var message = new MessageMqtt(Encoding.UTF8.GetString(e.ApplicationMessage.Payload), e.ApplicationMessage.Topic, DateTime.Now);
-
-                d.AddRequest(message);
+                dispatcher.AddRequest(message);
 
 
             });

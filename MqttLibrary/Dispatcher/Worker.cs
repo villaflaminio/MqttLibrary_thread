@@ -1,4 +1,5 @@
-﻿using MqttSubscriber.model;
+﻿using MqttLibrary.Subscriber.repository;
+using MqttSubscriber.model;
 using MqttSubscriber.repository;
 using System;
 using System.Collections.Generic;
@@ -6,68 +7,83 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MqttLibrary.Dispatcher
+namespace MqttLibrary.Worker
 {
     public class Worker
     {
 
-        private static bool flag = false;
-        static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
-        private static Repository db = new Repository();
-
-        private void SaveMessage(MessageMqtt messageDeque)
-        {
-            messageDeque.Id = null; // l'id deve essere generato automaticamente da repository
-            db.Messages.Add(messageDeque);
-
-            Console.WriteLine("Saving -> " + messageDeque.ToString());
-
-            db.SaveChanges();
-        }
+        private static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        private RepositoryService repository = RepositoryService.GetInstance();
+        readonly static object listLock = new object();
+        private Thread mainThread;
         public void Start()
         {
-            while (!flag)
+            mainThread = new Thread(WorkerThread);
+            mainThread.Start();
+        }
+
+    
+
+        public void WorkerThread()
+        {
+            while (true)
             {
                 try
                 {
-
-                    ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
-                    while (messageQueue.Count != 0)
+                    lock (listLock)
                     {
+                        ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
+                        while (messageQueue.Count == 0)
+                        {
+                            ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
+                            Monitor.Wait(listLock);
+                        }
                         MessageMqtt messageDeque = messageQueue.Dequeue();
-                        SaveMessage(messageDeque);
+                        //messageDeque.Payload += " Worked";
+                        Console.WriteLine("Saving -> " + messageDeque.ToString());
+                        repository.SaveMessage(messageDeque);
                     }
-
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
                 }
 
-
             }
-
             ///devo finire di svuotare la coda prima di arrestare il Thread
-            while (messageQueue.Count > 0)
-            {
-                MessageMqtt messageDeque = messageQueue.Dequeue();
-                SaveMessage(messageDeque);
-                // do something with queue value here
-            }
 
         }
 
-
-
-
         public void AddData(MessageMqtt m)
         {
-            messageQueue.Enqueue(m);
+            lock (listLock)
+            {
+                messageQueue.Enqueue(m);
+                ///comunico che ci sono nuovi elementi in coda           
+                Monitor.Pulse(listLock); ///sblocco la lista
+            }
         }
 
         public void Stop()
         {
-            flag = true;
+            new Thread(() =>
+            {
+                try
+                {
+                    mainThread.Interrupt();
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+
+                while (messageQueue.Count > 0)
+                {
+                    MessageMqtt messageDeque = messageQueue.Dequeue();
+                    repository.SaveMessage(messageDeque);
+                }
+            }).Start();
         }
     }
 }
