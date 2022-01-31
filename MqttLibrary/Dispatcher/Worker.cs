@@ -42,6 +42,7 @@ namespace MqttLibrary.Worker
                         //messageDeque.Payload += " Worked";
                         Console.WriteLine("Saving -> " + messageDeque.ToString());
                         repository.SaveMessage(messageDeque);
+                        //Thread.Sleep(200);
                     }
                 }
                 catch (Exception ex)

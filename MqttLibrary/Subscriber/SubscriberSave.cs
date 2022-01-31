@@ -21,11 +21,11 @@ namespace MqttLibrary.Subscriber
             
             Dispatcher dispatcher = Dispatcher.GetInstance(10);
 
-
+            var id = Guid.NewGuid().ToString();
         var mqttFactory = new MqttFactory();
             var client = mqttFactory.CreateMqttClient();
             var otions = new MqttClientOptionsBuilder()
-                .WithClientId(Guid.NewGuid().ToString())
+                .WithClientId(id)
                 .WithTcpServer("localhost", 1884)
                 .WithCleanSession()
                 .Build();
@@ -49,6 +49,7 @@ namespace MqttLibrary.Subscriber
             client.UseApplicationMessageReceivedHandler(e =>
             {
                 var message = new MessageMqtt(Encoding.UTF8.GetString(e.ApplicationMessage.Payload), e.ApplicationMessage.Topic, DateTime.Now);
+                message.Payload += " id Subscriber: " + id;
                 dispatcher.AddRequest(message);
 
 
