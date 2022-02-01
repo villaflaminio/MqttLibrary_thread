@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 
 namespace MqttLibrary.Worker
 {
+    public delegate void Notify();  // delegate
+
     public class Worker
     {
 
@@ -16,34 +18,61 @@ namespace MqttLibrary.Worker
         private RepositoryService repository = RepositoryService.GetInstance();
         readonly static object listLock = new object();
         private Thread mainThread;
+        private DateTime millis;
+        private int worker_code;
+        public event EventHandler<int> ProcessKilled;
+        private bool running; 
+
+
+        public Worker(int worker_code)
+        {
+            this.worker_code = worker_code;
+            running = true;
+        }
+
+
         public void Start()
         {
             mainThread = new Thread(WorkerThread);
+            millis = DateTime.Now;
             mainThread.Start();
         }
 
-    
+        protected virtual void OnProcessKilled() //protected virtual method
+        {
+            //if ProcessCompleted is not null then call delegate
+            ProcessKilled?.Invoke(this, worker_code);
+        }
 
         public void WorkerThread()
         {
-            while (true)
+            
+            while (running)
             {
                 try
                 {
                     lock (listLock)
                     {
-                        ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
-                        while (messageQueue.Count == 0)
+                        ///Se la coda è vuota, e non ricevo nuovi dati da almeno secondi
+                        if (millis.AddSeconds(5) < DateTime.Now)
                         {
-                            ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
-                            Monitor.Wait(listLock);
+                            OnProcessKilled();
+                            Stop();
+                            break;
+
                         }
-                        MessageMqtt messageDeque = messageQueue.Dequeue();
-                        //messageDeque.Payload += " Worked";
-                        Console.WriteLine("Saving -> " + messageDeque.ToString());
-                        repository.SaveMessage(messageDeque);
+                        else if(messageQueue.Count != 0)
+                        {
+                            MessageMqtt messageDeque = messageQueue.Dequeue();
+                            //messageDeque.Payload += " Worked";
+                            Console.WriteLine("Saving -> " + messageDeque.ToString());
+                            repository.SaveMessage(messageDeque);
+                        }
+                        
+                        
                         //Thread.Sleep(200);
                     }
+                    
                 }
                 catch (Exception ex)
                 {
@@ -60,6 +89,7 @@ namespace MqttLibrary.Worker
             lock (listLock)
             {
                 messageQueue.Enqueue(m);
+                millis = DateTime.Now;
                 ///comunico che ci sono nuovi elementi in coda           
                 Monitor.Pulse(listLock); ///sblocco la lista
             }
@@ -67,11 +97,13 @@ namespace MqttLibrary.Worker
 
         public void Stop()
         {
+           Console.WriteLine("STOPPPP");
             new Thread(() =>
             {
                 try
                 {
-                    mainThread.Interrupt();
+                    running = false;
+                    OnProcessKilled();
 
                 }
                 catch (Exception ex)

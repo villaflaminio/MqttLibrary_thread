@@ -110,14 +110,36 @@ namespace MqttSubscriber.Dispatcher
 
         private static void InstanceThread()
         {
-            Worker w = new Worker();
+            Worker w = new Worker(mapThread.Count + 1);
 
+            ///register with an event
+            w.ProcessKilled += worker_killed;
             Thread t = new Thread(w.Start);
             lock (mapThread)
             {
                 mapThread.TryAdd(mapThread.Count + 1, w);
             }
             t.Start();
+        }
+
+
+        /// <summary>
+        /// Questo metodo viene richiamato tramite evento di arresto del worker
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="worker_code"></param>
+        public static void worker_killed(object sender, int worker_code)
+        {
+            lock (mapThread)
+            {
+                Worker w;
+                if (mapThread.Remove(worker_code, out w))
+                {
+                    Console.WriteLine("Thread suicided");
+                    ///comunico che ci sono nuovi elementi in coda           
+                    Monitor.Pulse(mapThread); ///sblocco la lista
+                }
+            }
         }
 
         private static void ProcessRequest()

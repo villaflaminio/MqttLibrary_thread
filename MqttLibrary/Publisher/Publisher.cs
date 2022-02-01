@@ -48,7 +48,7 @@ namespace MqttLibrary.Publisher
             ///
             /// Test invio dati verso i subscriber
             ///
-            for (int i = 1; i < 500; i++)
+            for (int i = 1; i < 700; i++)
             {
                 ///
                 /// [0] = 10 req/s
