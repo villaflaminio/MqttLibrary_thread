@@ -1,4 +1,5 @@
-﻿using MqttLibrary.Subscriber.repository;
+﻿using MqttApp;
+using MqttLibrary.Subscriber.repository;
 using MqttSubscriber.model;
 using MqttSubscriber.repository;
 using System;
@@ -11,7 +12,7 @@ namespace MqttLibrary.Worker
 {
     public delegate void Notify();  // delegate
 
-    public class Worker
+    public class Worker 
     {
 
         private static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
@@ -24,6 +25,7 @@ namespace MqttLibrary.Worker
         private bool running; 
 
 
+        
         public Worker(int worker_code)
         {
             this.worker_code = worker_code;
@@ -65,13 +67,11 @@ namespace MqttLibrary.Worker
                         {
                             MessageMqtt messageDeque = messageQueue.Dequeue();
                             //messageDeque.Payload += " Worked";
-                            Console.WriteLine("Saving -> " + messageDeque.ToString());
+                            //Console.WriteLine("Saving -> " + messageDeque.ToString());
                             repository.SaveMessage(messageDeque);
                         }
-                        
-                        
-                        //Thread.Sleep(200);
-                    }
+                                                
+                     }
                     
                 }
                 catch (Exception ex)
@@ -117,6 +117,13 @@ namespace MqttLibrary.Worker
                     repository.SaveMessage(messageDeque);
                 }
             }).Start();
+        }
+
+
+
+        public string getTipo()
+        {
+            return ("special_worker");
         }
     }
 }

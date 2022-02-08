@@ -1,14 +1,8 @@
-﻿using MqttLibrary.Worker;
+﻿using MqttApp;
+using MqttLibrary.Worker;
 using MqttSubscriber.model;
-using MqttSubscriber.repository;
-using System;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Reflection;
 
 namespace MqttSubscriber.Dispatcher
 {
@@ -64,6 +58,72 @@ namespace MqttSubscriber.Dispatcher
             }
             ProcessRequest();
         }
+        
+        private static object GetReflectionObject(String type, Type t)
+        {
+            ///Dichiara l'istanza di classe Assembly per caricare l'assembly di sistema corrente
+            Assembly executing = Assembly.GetExecutingAssembly();
+
+            ///memorizzo tutti i tipi contenuti nell'assembly
+            Type[] types = executing.GetTypes();
+            foreach (Type classType in types)
+            {
+                ///cerco l'assembly che e' un'istanza dell'interfaccia desiderata 
+                if (t.IsAssignableFrom(classType) && classType.IsClass)
+                {
+                    ///instanzio un'oggetto che e' contenuto dell'assembly di sistema
+                    object instance = Activator.CreateInstance(classType);
+
+                    ///prendo il metodo getTipo e lo eseguo per vedere il messaggio custom contenuto nella singola istanza
+                    MethodInfo methodInfoOfInstance = classType.GetMethod("getTipo");
+                    String tipo = (String)methodInfoOfInstance.Invoke(instance, null);
+                    ///se il messaggio e' del tipo desiderato allora ho trovato la classe desiderata 
+                    if (tipo.Equals(type))
+                    {
+                        return instance;
+                        ///dopo aver controllato che l'oggetto implementa l'interfaccia posso eseguire il cast
+                       // IWorker workerRom = (WorkerRom)instance;
+                        //Console.WriteLine(tipo);
+                    }
+                }
+            }
+            return null;
+        }
+        private static void DispatchSinlgeMessage(MessageMqtt messageDeque)
+        {
+            string[] messageSplit = messageDeque.Payload.Split(",");
+
+            Type workerType = typeof(WorkerA);
+            Type typeIWorker = workerType.GetInterface("IWorker");
+
+            Type specialWorkerType = typeof(SpecialWorker);
+            Type typeISpecialWorker = specialWorkerType.GetInterface("ISpecialWorker");
+            switch (messageSplit[0])
+            {
+                case "IWorker":
+                    switch (messageSplit[1])
+                    {
+                        case "worker_a":
+                            IWorker workerA = (WorkerA)GetReflectionObject(messageSplit[1], typeIWorker);
+                            workerA.Start(messageDeque);
+                            break;
+                        case "worker_b":
+                            IWorker workerB = (WorkerB)GetReflectionObject(messageSplit[1], typeIWorker);
+                            workerB.Start(messageDeque);
+
+                            break;
+
+                    }                    
+                    break;
+                case "ISpecialWorker":
+                    ISpecialWorker specialWorker = (SpecialWorker)GetReflectionObject("special_worker", typeISpecialWorker);
+                    specialWorker.Start(messageDeque);
+
+                    break;
+
+            }
+        }
+
 
         static void DispatcherThread()
         {
@@ -89,17 +149,25 @@ namespace MqttSubscriber.Dispatcher
                                 }
 
                                 MessageMqtt messageDeque = messageQueue.Dequeue();
-                                if (mapThread.ContainsKey(mapThread.ElementAt(x).Key))
-                                {
-                                    try
-                                    {
-                                        mapThread.ElementAt(x).Value.AddData(messageDeque);
+                                string[] messageSplit = messageDeque.Payload.Split(",");
 
-                                    }
-                                    catch (Exception ex)
+                                if (messageSplit[1].Equals("worker")){
+                                    if (mapThread.ContainsKey(mapThread.ElementAt(x).Key))
                                     {
-                                        Console.WriteLine(ex.ToString());
+                                        try
+                                        {
+                                            mapThread.ElementAt(x).Value.AddData(messageDeque);
+
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine(ex.ToString());
+                                        }
                                     }
+                                }
+                                else
+                                {
+                                    DispatchSinlgeMessage(messageDeque);
                                 }
                             }
                         }
@@ -107,6 +175,7 @@ namespace MqttSubscriber.Dispatcher
                 }
             }
         }
+
 
         private static void InstanceThread()
         {
@@ -121,8 +190,6 @@ namespace MqttSubscriber.Dispatcher
             }
             t.Start();
         }
-
-
         /// <summary>
         /// Questo metodo viene richiamato tramite evento di arresto del worker
         /// </summary>
@@ -184,7 +251,7 @@ namespace MqttSubscriber.Dispatcher
                 {
                     InstanceThread();
                 }
-                Console.WriteLine("request_per_second = " + requestPerSecond + " thread_live = " + mapThread.Count + " message_to_be_processed " + messageQueue.Count);
+               // Console.WriteLine("request_per_second = " + requestPerSecond + " thread_live = " + mapThread.Count + " message_to_be_processed " + messageQueue.Count);
             }
         }
 

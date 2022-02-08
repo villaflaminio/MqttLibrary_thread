@@ -89,13 +89,18 @@ namespace MqttLibrary.Publisher
 
         private static async Task PublishMessageAsync(IMqttClient client, int i)
         {
+            String[] typeOfWorker = { "worker_a", "worker_b", "worker" };
+            String[] typeOfInterface = { "IWorker", "ISpecialWorker"};
+            var random = new Random();
+            var randomIndextypeOfWorker = random.Next(0, typeOfWorker.Length);
+            var randomIndextypeOfInterface = random.Next(0, typeOfWorker.Length);
 
-            //string mex = "Hello " + i + " Time_Send: " + DateTime.Now;
+            //string mex = "Hello " + i + " Time_Send: " + DateTime.Now;Random rn = new Random();
             string mex = i + "";
 
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic("flaminio")
-                .WithPayload(mex)
+                .WithPayload(typeOfInterface[randomIndextypeOfInterface] + ","+ typeOfWorker[randomIndextypeOfWorker])                
                 .WithAtLeastOnceQoS()
                 .Build();
 

@@ -18,7 +18,8 @@ namespace MqttLibrary.Subscriber
 
         public static void Run()
         {
-            
+
+            // Dispatcher dispatcher = Dispatcher.GetInstance(10);
             Dispatcher dispatcher = Dispatcher.GetInstance(10);
 
             var id = Guid.NewGuid().ToString();
@@ -49,7 +50,7 @@ namespace MqttLibrary.Subscriber
             client.UseApplicationMessageReceivedHandler(e =>
             {
                 var message = new MessageMqtt(Encoding.UTF8.GetString(e.ApplicationMessage.Payload), e.ApplicationMessage.Topic, DateTime.Now);
-                message.Payload += " id Subscriber: " + id;
+                //message.Payload += " id Subscriber: " + id;
                 dispatcher.AddRequest(message);
 
 
