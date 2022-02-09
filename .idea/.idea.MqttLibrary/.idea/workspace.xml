@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="d46dc1a8-ada8-4c91-b9aa-c869e0e44c06" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/MqttLibrary/Dispatcher/Dispatcher.cs" beforeDir="false" afterPath="$PROJECT_DIR$/MqttLibrary/Dispatcher/Dispatcher.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MqttLibrary/Dispatcher/Worker.cs" beforeDir="false" afterPath="$PROJECT_DIR$/MqttLibrary/Dispatcher/Worker.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MqttLibrary/Mqtt.db" beforeDir="false" afterPath="$PROJECT_DIR$/MqttLibrary/Mqtt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MqttLibrary/Publisher/Publisher.cs" beforeDir="false" afterPath="$PROJECT_DIR$/MqttLibrary/Publisher/Publisher.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MqttLibrary/Subscriber/SubscriberSave.cs" beforeDir="false" afterPath="$PROJECT_DIR$/MqttLibrary/Subscriber/SubscriberSave.cs" afterDir="false" />
-    </list>
+    <list default="true" id="d46dc1a8-ada8-4c91-b9aa-c869e0e44c06" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="thread_v2" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="24BZnyC2K2i59OAosjNDVQLIlJv" />
@@ -36,14 +35,38 @@
       <option name="presentableId" value="Default" />
       <updated>1643106114557</updated>
       <workItem from="1643106125159" duration="161000" />
+      <workItem from="1644398166317" duration="328000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
-  <component name="UnityProjectConfiguration" hasMinimizedUI="null" />
+  <component name="UnityProjectConfiguration" hasMinimizedUI="false" />
   <component name="UnityUnitTestConfiguration" currentTestLauncher="NUnit" />
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="origin/master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>

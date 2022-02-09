@@ -16,8 +16,6 @@ namespace MqttSubscriber.Dispatcher
         static private int nThreadMax;
         private static Dispatcher _instance;
 
-
-
         static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
         //static Queue<Thread> threads = new Queue<Thread>(); //contiene tutti i thread
         //private static Dictionary<long, Queue<MessageMqtt>> mapMessage = new Dictionary<long, Queue<MessageMqtt>>();
@@ -45,7 +43,6 @@ namespace MqttSubscriber.Dispatcher
             return _instance;
         }
 
-
         public void AddRequest(MessageMqtt message)
         {
             Measure();
@@ -59,7 +56,7 @@ namespace MqttSubscriber.Dispatcher
             ProcessRequest();
         }
         
-        private static object GetReflectionObject(String type, Type t)
+        private static T GetReflectionObject<T>(String type) 
         {
             ///Dichiara l'istanza di classe Assembly per caricare l'assembly di sistema corrente
             Assembly executing = Assembly.GetExecutingAssembly();
@@ -69,10 +66,10 @@ namespace MqttSubscriber.Dispatcher
             foreach (Type classType in types)
             {
                 ///cerco l'assembly che e' un'istanza dell'interfaccia desiderata 
-                if (t.IsAssignableFrom(classType) && classType.IsClass)
+                if (typeof(T).IsAssignableFrom(classType) && classType.IsClass)
                 {
                     ///instanzio un'oggetto che e' contenuto dell'assembly di sistema
-                    object instance = Activator.CreateInstance(classType);
+                    T instance = (T) Activator.CreateInstance(classType);
 
                     ///prendo il metodo getTipo e lo eseguo per vedere il messaggio custom contenuto nella singola istanza
                     MethodInfo methodInfoOfInstance = classType.GetMethod("getTipo");
@@ -87,43 +84,34 @@ namespace MqttSubscriber.Dispatcher
                     }
                 }
             }
-            return null;
+            throw new Exception("Non trovato");
         }
+
         private static void DispatchSinlgeMessage(MessageMqtt messageDeque)
         {
             string[] messageSplit = messageDeque.Payload.Split(",");
+            
+            Type typeIWorker = typeof(IWorker);
+            Type typeISpecialWorker = typeof(ISpecialWorker);
 
-            Type workerType = typeof(WorkerA);
-            Type typeIWorker = workerType.GetInterface("IWorker");
+            //Type workerType = typeof(WorkerA);
+            //Type typeIWorker = workerType.GetInterface("IWorker");
 
-            Type specialWorkerType = typeof(SpecialWorker);
-            Type typeISpecialWorker = specialWorkerType.GetInterface("ISpecialWorker");
+            //Type specialWorkerType = typeof(SpecialWorker);
+            //Type typeISpecialWorker = specialWorkerType.GetInterface("ISpecialWorker");
             switch (messageSplit[0])
             {
                 case "IWorker":
-                    switch (messageSplit[1])
-                    {
-                        case "worker_a":
-                            IWorker workerA = (WorkerA)GetReflectionObject(messageSplit[1], typeIWorker);
-                            workerA.Start(messageDeque);
-                            break;
-                        case "worker_b":
-                            IWorker workerB = (WorkerB)GetReflectionObject(messageSplit[1], typeIWorker);
-                            workerB.Start(messageDeque);
-
-                            break;
-
-                    }                    
+                    IWorker worker = GetReflectionObject<IWorker>(messageSplit[1]);
+                    worker.Start(messageDeque);
                     break;
                 case "ISpecialWorker":
-                    ISpecialWorker specialWorker = (SpecialWorker)GetReflectionObject("special_worker", typeISpecialWorker);
+                    ISpecialWorker specialWorker = GetReflectionObject<ISpecialWorker>("special_worker");
                     specialWorker.Start(messageDeque);
-
                     break;
 
             }
         }
-
 
         static void DispatcherThread()
         {
@@ -175,7 +163,6 @@ namespace MqttSubscriber.Dispatcher
                 }
             }
         }
-
 
         private static void InstanceThread()
         {
@@ -254,7 +241,6 @@ namespace MqttSubscriber.Dispatcher
                // Console.WriteLine("request_per_second = " + requestPerSecond + " thread_live = " + mapThread.Count + " message_to_be_processed " + messageQueue.Count);
             }
         }
-
 
         public void SetNThreadMax(int n)
         {
