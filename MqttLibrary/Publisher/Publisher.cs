@@ -41,14 +41,14 @@ namespace MqttLibrary.Publisher
             
             while (!client.IsConnected)
             {
-                Task.Delay(10).Wait();
+                Task.Delay(100).Wait();
                 Console.WriteLine(mqttFactory.GetHashCode + "Disconnect");
             }
 
             ///
             /// Test invio dati verso i subscriber
             ///
-            for (int i = 0; i < 500; i++)
+            for (int i = 1; i < 700; i++)
             {
                 ///
                 /// [0] = 10 req/s
@@ -65,7 +65,7 @@ namespace MqttLibrary.Publisher
                 else if (i >= 100 && i < 200)
                 {
                     PublishMessageAsync(client, i);
-                    Task.Delay(requestPerSecond[2]).Wait();
+                    Task.Delay(requestPerSecond[4]).Wait();
                 }
                 else if (i >= 200 && i < 300)
                 {
@@ -80,7 +80,7 @@ namespace MqttLibrary.Publisher
                 else 
                 {
                     PublishMessageAsync(client, i);
-                    Task.Delay(requestPerSecond[3]).Wait();
+                    //Task.Delay(requestPerSecond[4]).Wait();
                 }
             }
             
@@ -89,12 +89,18 @@ namespace MqttLibrary.Publisher
 
         private static async Task PublishMessageAsync(IMqttClient client, int i)
         {
+            String[] typeOfWorker = { "worker_a", "worker_b", "worker" };
+            String[] typeOfInterface = { "IWorker", "ISpecialWorker"};
+            var random = new Random();
+            var randomIndextypeOfWorker = random.Next(0, typeOfWorker.Length);
+            var randomIndextypeOfInterface = random.Next(0, typeOfWorker.Length);
 
-            string mex = "Hello " + i + " Time_Send: " + DateTime.Now;
+            //string mex = "Hello " + i + " Time_Send: " + DateTime.Now;Random rn = new Random();
+            string mex = i + "";
 
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic("flaminio")
-                .WithPayload(mex)
+                .WithPayload(typeOfInterface[randomIndextypeOfInterface] + ","+ typeOfWorker[randomIndextypeOfWorker])                
                 .WithAtLeastOnceQoS()
                 .Build();
 

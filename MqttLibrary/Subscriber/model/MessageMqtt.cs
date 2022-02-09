@@ -18,9 +18,7 @@ namespace MqttSubscriber.model
             Payload = payload;
             Topic = topic;
             TimeStamp = timeStamp;
-        }
-
-        
+        }  
 
         public override string ToString()
         {
