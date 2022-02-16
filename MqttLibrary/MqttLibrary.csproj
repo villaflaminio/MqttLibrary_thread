@@ -7,14 +7,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="M2Mqtt" Version="4.3.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.TestPlatform.TestHost" Version="17.0.0" />
     <PackageReference Include="MQTTnet" Version="3.1.1" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Publisher\client.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Subscriber\client.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
