@@ -20,26 +20,32 @@ namespace MqttLibrary.Publisher
 
         public static async void Run()
 
-        {
-            var mqttFactory = new MqttFactory();
+        {   ///https://github-wiki-see.page/m/chkr1011/MQTTnet/wiki/Client
+            
+            MqttFactory mqttFactory = new MqttFactory();
+            
+            X509Certificate caCert = X509Certificate.CreateFromCertFile(@"C:\certs\CACERT.crt");
+            X509Certificate clientCert = new X509Certificate2(@"C:\certs\certificateClient.pfx", "flaminio");
 
-            var client = mqttFactory.CreateMqttClient();
-           
+            IMqttClient client = mqttFactory.CreateMqttClient();
             var tlsOptions = new MqttClientOptionsBuilderTlsParameters
             {
                 UseTls = true,
+                SslProtocol = System.Security.Authentication.SslProtocols.Tls12,
                 Certificates = new List<X509Certificate>
                         {
-                            new X509Certificate("C:\\work_space\\c#\\2.mqtt_dispatcher\\MqttLibrary\\MqttLibrary\\Subscriber\\client.crt")
+                            clientCert, caCert
 
                         },
                 AllowUntrustedCertificates = true,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true
             };
+
             var options = new MqttClientOptionsBuilder()
                             .WithClientId(Guid.NewGuid().ToString())
-                            .WithTcpServer("test.mosquitto.org", 8883)
+                            .WithTcpServer("localhost", 8883)
+                            .WithCredentials("root", "flaminio")
                             .WithTls(tlsOptions)
                             .WithCleanSession()
                             .Build();
@@ -108,7 +114,7 @@ namespace MqttLibrary.Publisher
         {
             String[] typeOfWorker = { "worker_a", "worker_b", "worker" };
             String[] typeOfInterface = { "IWorker", "ISpecialWorker" };
-            var random = new Random();
+            Random random = new Random();
             int randomIndextypeOfWorker = random.Next(0, typeOfWorker.Length);
             int randomIndextypeOfInterface = random.Next(0, typeOfWorker.Length);
 

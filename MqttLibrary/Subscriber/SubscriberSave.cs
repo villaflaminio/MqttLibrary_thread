@@ -19,21 +19,23 @@ namespace MqttLibrary.Subscriber
 
         public static void Run()
         {
-
+            ///https://github-wiki-see.page/m/chkr1011/MQTTnet/wiki/Client
+            ///
             Dispatcher dispatcher = Dispatcher.GetInstance(10);
 
-            var id = Guid.NewGuid().ToString();
-            var mqttFactory = new MqttFactory();
+            MqttFactory mqttFactory = new MqttFactory();
 
+            X509Certificate caCert = X509Certificate.CreateFromCertFile(@"C:\certs\CACERT.crt");
+            X509Certificate clientCert = new X509Certificate2(@"C:\certs\certificateClient.pfx", "flaminio");
 
-
-            var client = mqttFactory.CreateMqttClient();
+            IMqttClient client = mqttFactory.CreateMqttClient();
             var tlsOptions = new MqttClientOptionsBuilderTlsParameters
             {
                 UseTls = true,
+                SslProtocol = System.Security.Authentication.SslProtocols.Tls12,
                 Certificates = new List<X509Certificate>
                         {
-                            new X509Certificate("C:\\work_space\\c#\\2.mqtt_dispatcher\\MqttLibrary\\MqttLibrary\\Subscriber\\client.crt")
+                            clientCert, caCert
 
                         },
                 AllowUntrustedCertificates = true,
@@ -43,7 +45,8 @@ namespace MqttLibrary.Subscriber
 
             var options = new MqttClientOptionsBuilder()
                             .WithClientId(Guid.NewGuid().ToString())
-                            .WithTcpServer("test.mosquitto.org", 8883)
+                            .WithTcpServer("localhost", 8883)
+                            .WithCredentials("root", "flaminio")
                             .WithTls(tlsOptions)
                             .WithCleanSession()
                             .Build();
@@ -67,7 +70,7 @@ namespace MqttLibrary.Subscriber
 
             client.UseApplicationMessageReceivedHandler(e =>
             {
-                var message = new MessageMqtt(Encoding.UTF8.GetString(e.ApplicationMessage.Payload), e.ApplicationMessage.Topic, DateTime.Now);
+                MessageMqtt message = new MessageMqtt(Encoding.UTF8.GetString(e.ApplicationMessage.Payload), e.ApplicationMessage.Topic, DateTime.Now);
                 //message.Payload += " id Subscriber: " + id;
                 dispatcher.AddRequest(message);
 
