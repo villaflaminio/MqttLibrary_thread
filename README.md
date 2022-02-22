@@ -3,7 +3,6 @@ Docuemntazione : https://www.notion.so/NET-8ca20b34bd51410fa2f0233858178d64
 - implementazione di Publisher , Subscriber , Broker MQTT 
 - implementazione di Entity framework con mysql lite
 - implementazione di multithreading per gestire i messaggi piu' velocemente
-- 
 - implementazione di un "Dispatcher", che pendeva i messaggi dal subscriber e li elabborasse con dei thread (tipo se fossero dei worker)
 - Il dispatcher misura il numero di richieste al secondo in arrivo ed istanzia un thread ogni fattore di 10 richieste al secondo (20req/s = 2th , 60 req/s = 6 th, etc...). fino a raggiungere il massimo numero di thread (che dobbiamo definire noi ).
 - chiaramente quando sono disponibili piu' thread di quelli necessari , il dispatcher li arresta.
