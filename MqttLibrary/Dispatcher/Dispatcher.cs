@@ -1,6 +1,7 @@
 ﻿using MqttApp;
 using MqttLibrary.Worker;
 using MqttSubscriber.model;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -16,13 +17,12 @@ namespace MqttSubscriber.Dispatcher
         static private int nThreadMax;
         private static Dispatcher _instance;
 
-        static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        static ConcurrentQueue<MessageMqtt> _messageQueueConcurrent = new ConcurrentQueue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        static SemaphoreSlim _messageQueueAvailable = new SemaphoreSlim(0);
         //static Queue<Thread> threads = new Queue<Thread>(); //contiene tutti i thread
         //private static Dictionary<long, Queue<MessageMqtt>> mapMessage = new Dictionary<long, Queue<MessageMqtt>>();
         private static Dictionary<long, Worker> mapThread = new Dictionary<long, Worker>();
 
-
-        readonly static object listLock = new object();
         Thread dispatcherThread = new Thread(DispatcherThread);
 
 
@@ -33,6 +33,7 @@ namespace MqttSubscriber.Dispatcher
             sw.Start();
             dispatcherThread.Start();
         }
+
         public static Dispatcher GetInstance(int nThread)
         {
             nThreadMax = nThread;
@@ -46,17 +47,74 @@ namespace MqttSubscriber.Dispatcher
         public void AddRequest(MessageMqtt message)
         {
             Measure();
-            /// per aggiungere un nuovo elemento in coda, la blocco prima di modificarla
-            lock (listLock)
-            {
-                messageQueue.Enqueue(message);
-                ///comunico che ci sono nuovi elementi in coda           
-                Monitor.Pulse(listLock); ///sblocco la lista
-            }
+           
+            _messageQueueConcurrent.Enqueue(message);
+            _messageQueueAvailable.Release(1);
             ProcessRequest();
         }
-        
-        private static T GetReflectionObject<T>(String type) 
+
+        //private static T GetReflectionObject<T>(String type) 
+        //{
+        //    ///Dichiara l'istanza di classe Assembly per caricare l'assembly di sistema corrente
+        //    Assembly executing = Assembly.GetExecutingAssembly();
+
+        //    ///memorizzo tutti i tipi contenuti nell'assembly
+        //    Type[] types = executing.GetTypes();
+        //    foreach (Type classType in types)
+        //    {
+        //        ///cerco l'assembly che e' un'istanza dell'interfaccia desiderata 
+        //        if (typeof(T).IsAssignableFrom(classType) && classType.IsClass)
+        //        {
+        //            ///instanzio un'oggetto che e' contenuto dell'assembly di sistema
+        //            T instance = (T) Activator.CreateInstance(classType);
+
+        //            ///prendo il metodo getTipo e lo eseguo per vedere il messaggio custom contenuto nella singola istanza
+        //            MethodInfo methodInfoOfInstance = classType.GetMethod("getTipo");
+        //            String tipo = (String)methodInfoOfInstance.Invoke(instance, null);
+        //            ///se il messaggio e' del tipo desiderato allora ho trovato la classe desiderata 
+        //            if (tipo.Equals(type))
+        //            {
+
+        //                ///dopo aver controllato che l'oggetto implementa l'interfaccia posso eseguire il cast
+        //                // IWorker workerRom = (WorkerRom)instance;
+        //                //Console.WriteLine(tipo);
+        //                return instance;
+        //            }
+        //        }
+        //    }
+        //    throw new Exception("Non trovato");
+        //}
+
+
+        //private static void DispatchSinlgeMessage(MessageMqtt messageDeque)
+        //{
+        //    string[] messageSplit = messageDeque.Payload.Split(",");
+
+        //    Type typeIWorker = typeof(IWorker);
+        //    Type typeISpecialWorker = typeof(ISpecialWorker);
+
+        //    //Type workerType = typeof(WorkerA);
+        //    //Type typeIWorker = workerType.GetInterface("IWorker");
+
+        //    //Type specialWorkerType = typeof(SpecialWorker);
+        //    //Type typeISpecialWorker = specialWorkerType.GetInterface("ISpecialWorker");
+        //    switch (messageSplit[0])
+        //    {
+        //        case "IWorker":
+        //            IWorker worker = GetReflectionObject<IWorker>(messageSplit[1]);
+        //            worker.Start(messageDeque);
+        //            break;
+        //        case "ISpecialWorker":
+        //            ISpecialWorker specialWorker = GetReflectionObject<ISpecialWorker>("special_worker");
+        //            specialWorker.Start(messageDeque);
+        //            break;
+
+        //    }
+        //}
+
+
+
+        private static object GetReflectionObject(String type, Type t)
         {
             ///Dichiara l'istanza di classe Assembly per caricare l'assembly di sistema corrente
             Assembly executing = Assembly.GetExecutingAssembly();
@@ -66,10 +124,10 @@ namespace MqttSubscriber.Dispatcher
             foreach (Type classType in types)
             {
                 ///cerco l'assembly che e' un'istanza dell'interfaccia desiderata 
-                if (typeof(T).IsAssignableFrom(classType) && classType.IsClass)
+                if (t.IsAssignableFrom(classType) && classType.IsClass)
                 {
                     ///instanzio un'oggetto che e' contenuto dell'assembly di sistema
-                    T instance = (T) Activator.CreateInstance(classType);
+                    object instance = Activator.CreateInstance(classType);
 
                     ///prendo il metodo getTipo e lo eseguo per vedere il messaggio custom contenuto nella singola istanza
                     MethodInfo methodInfoOfInstance = classType.GetMethod("getTipo");
@@ -84,39 +142,53 @@ namespace MqttSubscriber.Dispatcher
                     }
                 }
             }
-            throw new Exception("Non trovato");
+            return null;
         }
 
         private static void DispatchSinlgeMessage(MessageMqtt messageDeque)
         {
             string[] messageSplit = messageDeque.Payload.Split(",");
-            
-            Type typeIWorker = typeof(IWorker);
-            Type typeISpecialWorker = typeof(ISpecialWorker);
 
-            //Type workerType = typeof(WorkerA);
-            //Type typeIWorker = workerType.GetInterface("IWorker");
+            Type workerType = typeof(WorkerA);
 
-            //Type specialWorkerType = typeof(SpecialWorker);
-            //Type typeISpecialWorker = specialWorkerType.GetInterface("ISpecialWorker");
+            Type typeIWorker = workerType.GetInterface("IWorker");
+
+            Type specialWorkerType = typeof(SpecialWorker);
+            Type typeISpecialWorker = specialWorkerType.GetInterface("ISpecialWorker");
             switch (messageSplit[0])
             {
                 case "IWorker":
-                    IWorker worker = GetReflectionObject<IWorker>(messageSplit[1]);
-                    worker.Start(messageDeque);
+                    switch (messageSplit[1])
+                    {
+                        case "worker_a":
+                            IWorker workerA = (WorkerA)GetReflectionObject(messageSplit[1], typeIWorker);
+                            workerA.Start(messageDeque);
+                            break;
+                        case "worker_b":
+                            IWorker workerB = (WorkerB)GetReflectionObject(messageSplit[1], typeIWorker);
+                            workerB.Start(messageDeque);
+
+                            break;
+
+                    }
                     break;
                 case "ISpecialWorker":
-                    ISpecialWorker specialWorker = GetReflectionObject<ISpecialWorker>("special_worker");
+                    ISpecialWorker specialWorker = (SpecialWorker)GetReflectionObject("special_worker", typeISpecialWorker);
                     specialWorker.Start(messageDeque);
+
                     break;
 
             }
         }
 
+
+
         static void DispatcherThread()
         {
             while (true)
             {
+                _messageQueueAvailable.Wait();
+
                 if (mapThread.Count > 0)
                 {
                     //foreach (KeyValuePair<long, > kvpWorker in mapThread)
@@ -124,22 +196,21 @@ namespace MqttSubscriber.Dispatcher
                     lock (mapThread)
                     {
                         for (int x = 0; x < mapThread.Count; x++)
-                        {
-
-                            lock (listLock)
-                            {
-                                ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
-                                if (messageQueue.Count == 0)
+                        {   
+                            ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
+                            if (_messageQueueConcurrent.Count == 0)
                                 {
-                                    ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
-                                    //Monitor.Wait(listLock);
+                                ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
+                                //Monitor.Wait(listLock);                              
+
                                     break;
                                 }
 
-                                MessageMqtt messageDeque = messageQueue.Dequeue();
+                                MessageMqtt messageDeque;
+                                _messageQueueConcurrent.TryDequeue(out messageDeque);
                                 string[] messageSplit = messageDeque.Payload.Split(",");
 
-                                if (messageSplit[1].Equals("worker")){
+                                if (messageSplit[0].Equals("worker")){
                                     if (mapThread.ContainsKey(mapThread.ElementAt(x).Key))
                                     {
                                         try
@@ -160,7 +231,7 @@ namespace MqttSubscriber.Dispatcher
                             }
                         }
                     }
-                }
+                
             }
         }
 

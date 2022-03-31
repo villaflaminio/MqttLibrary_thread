@@ -9,8 +9,6 @@ using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities.Resources;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Options;
-using uPLibrary.Networking.M2Mqtt;
-using uPLibrary.Networking.M2Mqtt.Messages;
 
 namespace MqttLibrary.Publisher
 {
@@ -56,7 +54,7 @@ namespace MqttLibrary.Publisher
             });
             client.UseDisconnectedHandler(e =>
             {
-                Console.WriteLine(mqttFactory.GetHashCode + "Disconnect");
+                //Console.WriteLine(mqttFactory.GetHashCode + "Disconnect");
             });
 
             await client.ConnectAsync(options);
@@ -65,7 +63,7 @@ namespace MqttLibrary.Publisher
             while (!client.IsConnected)
             {
                 Task.Delay(100).Wait();
-                Console.WriteLine(mqttFactory.GetHashCode + "Disconnect");
+                //Console.WriteLine(mqttFactory.GetHashCode + "Disconnect");
             }
 
             ///
@@ -123,7 +121,8 @@ namespace MqttLibrary.Publisher
 
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic("flaminio")
-                .WithPayload(typeOfInterface[randomIndextypeOfInterface] + "," + typeOfWorker[randomIndextypeOfWorker])
+               // .WithPayload(typeOfInterface[randomIndextypeOfInterface] + "," + typeOfWorker[randomIndextypeOfWorker] + " numero: " + i)
+                .WithPayload("worker" + "," + typeOfWorker[randomIndextypeOfWorker] + " numero: " + i)
                 .WithAtLeastOnceQoS()
                 .Build();
 

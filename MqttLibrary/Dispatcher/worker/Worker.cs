@@ -67,7 +67,7 @@ namespace MqttLibrary.Worker
                         {
                             MessageMqtt messageDeque = messageQueue.Dequeue();
                             //messageDeque.Payload += " Worked";
-                            //Console.WriteLine("Saving -> " + messageDeque.ToString());
+                            Console.WriteLine("Saving -> " + messageDeque.ToString());
                             repository.SaveMessage(messageDeque);
                         }
                                                 
