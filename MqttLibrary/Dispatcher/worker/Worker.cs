@@ -3,6 +3,7 @@ using MqttLibrary.Subscriber.repository;
 using MqttSubscriber.model;
 using MqttSubscriber.repository;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,20 +13,22 @@ namespace MqttLibrary.Worker
 {
     public delegate void Notify();  // delegate
 
-    public class Worker 
+    public class Worker
     {
 
-        private static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
-        private RepositoryService repository = RepositoryService.GetInstance();
-        readonly static object listLock = new object();
+        //private static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        static ConcurrentQueue<MessageMqtt> _messageQueue = new ConcurrentQueue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        static SemaphoreSlim _messageQueueAvailable = new SemaphoreSlim(0);
+
+        private static RepositoryService repository = RepositoryService.GetInstance();
         private Thread mainThread;
         private DateTime millis;
         private int worker_code;
         public event EventHandler<int> ProcessKilled;
-        private bool running; 
+        private static bool running;
 
 
-        
+
         public Worker(int worker_code)
         {
             this.worker_code = worker_code;
@@ -48,31 +51,31 @@ namespace MqttLibrary.Worker
 
         public void WorkerThread()
         {
-            
             while (running)
             {
                 try
                 {
-                    lock (listLock)
-                    {
-                        ///Se la coda è vuota, e non ricevo nuovi dati da almeno secondi
-                        if (millis.AddSeconds(5) < DateTime.Now)
-                        {
-                            OnProcessKilled();
-                            Stop();
-                            break;
 
-                        }
-                        else if(messageQueue.Count != 0)
+                    ///Se la coda è vuota, e non ricevo nuovi dati da almeno secondi
+                    if (millis.AddSeconds(5) < DateTime.Now)
+                    {
+                        Stop();
+                        OnProcessKilled();
+                        break;
+                    }
+
+                    else if (!_messageQueue.IsEmpty)
+                    {
+                        MessageMqtt messageDeque;
+                        if (_messageQueue.TryDequeue(out messageDeque))
                         {
-                            MessageMqtt messageDeque = messageQueue.Dequeue();
                             //messageDeque.Payload += " Worked";
-                            Console.WriteLine("Saving -> " + messageDeque.ToString());
+                            Console.WriteLine("Saving now -> " + messageDeque.ToString());
                             repository.SaveMessage(messageDeque);
                         }
-                                                
-                     }
-                    
+                    }
+
+
                 }
                 catch (Exception ex)
                 {
@@ -86,37 +89,43 @@ namespace MqttLibrary.Worker
 
         public void AddData(MessageMqtt m)
         {
-            lock (listLock)
-            {
-                messageQueue.Enqueue(m);
-                millis = DateTime.Now;
-                ///comunico che ci sono nuovi elementi in coda           
-                Monitor.Pulse(listLock); ///sblocco la lista
-            }
-        }
+            _messageQueue.Enqueue(m);
+            _messageQueueAvailable.Release(1);
+            millis = DateTime.Now;
 
+        }
         public void Stop()
         {
-           Console.WriteLine("STOPPPP");
-            new Thread(() =>
+            OnProcessKilled();
+            Thread stop = new Thread(new ThreadStart(Worker.DOStop));
+            stop.Start();
+
+
+        }
+
+        public static void DOStop()
+        {
+            Console.WriteLine("***Stopping***");
+
+            try
             {
-                try
-                {
-                    running = false;
-                    OnProcessKilled();
+                running = false;
 
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.ToString());
-                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
 
-                while (messageQueue.Count > 0)
-                {
-                    MessageMqtt messageDeque = messageQueue.Dequeue();
-                    repository.SaveMessage(messageDeque);
-                }
-            }).Start();
+            MessageMqtt messageDeque;
+
+            while (_messageQueue.TryDequeue(out messageDeque))
+            {
+                //messageDeque.Payload += " Worked";
+                Console.WriteLine("Saving now -> " + messageDeque.ToString());
+                repository.SaveMessage(messageDeque);
+            }
+
         }
 
 

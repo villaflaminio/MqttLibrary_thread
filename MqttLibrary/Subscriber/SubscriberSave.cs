@@ -21,7 +21,7 @@ namespace MqttLibrary.Subscriber
         {
             ///https://github-wiki-see.page/m/chkr1011/MQTTnet/wiki/Client
             ///
-            Dispatcher dispatcher = Dispatcher.GetInstance(10);
+            Dispatcher dispatcher = Dispatcher.GetInstance(100);
 
             MqttFactory mqttFactory = new MqttFactory();
 

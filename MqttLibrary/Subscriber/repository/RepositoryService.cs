@@ -1,6 +1,7 @@
 ﻿using MqttSubscriber.model;
 using MqttSubscriber.repository;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,10 +14,13 @@ namespace MqttLibrary.Subscriber.repository
     {
         private static RepositoryService _instance;
         private static Repository db = new Repository();
-        private static Queue<MessageMqtt> messageQueue = new Queue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
-        private readonly static object listLock = new object();
+        private static ConcurrentQueue<MessageMqtt> _messageQueue = new ConcurrentQueue<MessageMqtt>(); //contiene la coda con i messaggi che vengono ricevuti
+        static SemaphoreSlim _messageQueueAvailable = new SemaphoreSlim(0);
+        private static DateTime millis;
+
         private Thread processRequestThread = new Thread(ProcessRequest);
-        private RepositoryService() {
+        private RepositoryService()
+        {
             processRequestThread.Start();
         }
 
@@ -25,18 +29,16 @@ namespace MqttLibrary.Subscriber.repository
             if (_instance == null)
             {
                 _instance = new RepositoryService();
+                millis = DateTime.Now;
+
             }
             return _instance;
         }
 
         public void SaveMessage(MessageMqtt messageDeque)
         {
-            lock (listLock)
-            {
-                messageQueue.Enqueue(messageDeque);
-                ///comunico che ci sono nuovi elementi in coda           
-                Monitor.Pulse(listLock); ///sblocco la lista
-            }           
+            _messageQueue.Enqueue(messageDeque);
+            _messageQueueAvailable.Release(1);
         }
 
         static void ProcessRequest()
@@ -45,18 +47,21 @@ namespace MqttLibrary.Subscriber.repository
             {
                 try
                 {
-                    lock (listLock)
+
+                    if (!_messageQueue.IsEmpty)
                     {
-                        ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
-                        while (messageQueue.Count == 0)
+                        MessageMqtt messageDeque;
+                        if (_messageQueue.TryDequeue(out messageDeque))
                         {
-                            ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
-                            Monitor.Wait(listLock);
+                            messageDeque.Id = null; // l'id deve essere generato automaticamente da repository
+                            db.Messages.Add(messageDeque);
+
+                            if (millis.AddSeconds(2) < DateTime.Now)
+                            {
+                                db.SaveChanges();
+                                millis = DateTime.Now;
+                            }
                         }
-                        MessageMqtt messageDeque = messageQueue.Dequeue();
-                        messageDeque.Id = null; // l'id deve essere generato automaticamente da repository
-                        db.Messages.Add(messageDeque);
-                        db.SaveChanges();
                     }
                 }
                 catch (Exception ex)

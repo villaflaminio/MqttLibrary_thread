@@ -21,7 +21,7 @@ namespace MqttSubscriber.Dispatcher
         static SemaphoreSlim _messageQueueAvailable = new SemaphoreSlim(0);
         //static Queue<Thread> threads = new Queue<Thread>(); //contiene tutti i thread
         //private static Dictionary<long, Queue<MessageMqtt>> mapMessage = new Dictionary<long, Queue<MessageMqtt>>();
-        private static Dictionary<long, Worker> mapThread = new Dictionary<long, Worker>();
+        private static ConcurrentDictionary<long, Worker> _mapThread = new ConcurrentDictionary<long, Worker>();
 
         Thread dispatcherThread = new Thread(DispatcherThread);
 
@@ -47,7 +47,7 @@ namespace MqttSubscriber.Dispatcher
         public void AddRequest(MessageMqtt message)
         {
             Measure();
-           
+
             _messageQueueConcurrent.Enqueue(message);
             _messageQueueAvailable.Release(1);
             ProcessRequest();
@@ -189,49 +189,49 @@ namespace MqttSubscriber.Dispatcher
             {
                 _messageQueueAvailable.Wait();
 
-                if (mapThread.Count > 0)
+                if (!_mapThread.IsEmpty)
                 {
                     //foreach (KeyValuePair<long, > kvpWorker in mapThread)
                     // foreach (Worker kvpWorker in mapThread.Values) Collection was modified; enumeration operation may not execute.'
-                    lock (mapThread)
+
+                    for (int x = 0; x < mapThread.Count; x++)
                     {
-                        for (int x = 0; x < mapThread.Count; x++)
-                        {   
-                            ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
-                            if (_messageQueueConcurrent.Count == 0)
+                        ///Se la coda è vuota, devo attendere che venga aggiunto un elemento
+                        if (_messageQueueConcurrent.Count == 0)
+                        {
+                            ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
+                            //Monitor.Wait(listLock);                              
+
+                            break;
+                        }
+
+                        MessageMqtt messageDeque;
+                        _messageQueueConcurrent.TryDequeue(out messageDeque);
+                        string[] messageSplit = messageDeque.Payload.Split(",");
+
+                        if (messageSplit[0].Equals("worker"))
+                        {
+                            if (mapThread.ContainsKey(mapThread.ElementAt(x).Key))
+                            {
+                                try
                                 {
-                                ///rilascio listLock, riacquistandolo solo dopo essere stato svegliato da una chiamata a Pulse
-                                //Monitor.Wait(listLock);                              
+                                    mapThread.ElementAt(x).Value.AddData(messageDeque);
 
-                                    break;
                                 }
-
-                                MessageMqtt messageDeque;
-                                _messageQueueConcurrent.TryDequeue(out messageDeque);
-                                string[] messageSplit = messageDeque.Payload.Split(",");
-
-                                if (messageSplit[0].Equals("worker")){
-                                    if (mapThread.ContainsKey(mapThread.ElementAt(x).Key))
-                                    {
-                                        try
-                                        {
-                                            mapThread.ElementAt(x).Value.AddData(messageDeque);
-
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Console.WriteLine(ex.ToString());
-                                        }
-                                    }
-                                }
-                                else
+                                catch (Exception ex)
                                 {
-                                    DispatchSinlgeMessage(messageDeque);
+                                    Console.WriteLine(ex.ToString());
                                 }
                             }
                         }
+                        else
+                        {
+                            DispatchSinlgeMessage(messageDeque);
+                        }
                     }
-                
+
+                }
+
             }
         }
 
@@ -309,7 +309,7 @@ namespace MqttSubscriber.Dispatcher
                 {
                     InstanceThread();
                 }
-               // Console.WriteLine("request_per_second = " + requestPerSecond + " thread_live = " + mapThread.Count + " message_to_be_processed " + messageQueue.Count);
+                // Console.WriteLine("request_per_second = " + requestPerSecond + " thread_live = " + mapThread.Count + " message_to_be_processed " + messageQueue.Count);
             }
         }
 
