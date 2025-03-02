@@ -1,5 +1,4 @@
 # MqttLibrary_thread
-Docuemntazione : https://www.notion.so/NET-8ca20b34bd51410fa2f0233858178d64
 - implementazione di Publisher , Subscriber , Broker MQTT 
 - implementazione di Entity framework con mysql lite
 - implementazione di multithreading per gestire i messaggi piu' velocemente
